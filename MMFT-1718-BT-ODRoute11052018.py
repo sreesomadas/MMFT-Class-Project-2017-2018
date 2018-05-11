@@ -118,8 +118,9 @@ def createODRoute(con,cur):
     sql="CREATE TABLE ODRoute ( \
             emp_no SERIAL PRIMARY KEY, \
             routeID text, \
-            originSiteID text, midSiteID text,\
-            destSiteID text \
+            timestamp timestamp, \
+            winlenseconds integer, \
+            count integer \
             );"
     cur.execute(sql)          
     con.commit() 
@@ -145,18 +146,6 @@ def createRouteCount(con, cur):
             );"
     cur.execute(sql)          
     con.commit()
-"""def createMeasureableRouteCount (con, cur):   
-    sql = "DROP TABLE IF EXISTS MeasureableRouteCount;"
-    cur.execute(sql)          
-    sql="CREATE TABLE MeasureableRouteCount ( \
-            emp_no SERIAL PRIMARY KEY, \
-            MeasureableRouteID text, \
-            timestamp timestamp, \
-            winlenseconds integer, \
-            count integer \
-            );"
-    cur.execute(sql)          
-    con.commit()"""
 def createLinkCount(con, cur):
     sql = "DROP TABLE IF EXISTS linkcount;"
     cur.execute(sql)          
@@ -239,6 +228,7 @@ def makeODRoutes(con,cur):
     #df_ODRoutes.assign(route1="MAC000010119>MAC000010104>MAC000010130")
     #route1 = [df_ODRoutes.assign["routeID"]=="MAC000010119>MAC000010104>MAC000010130"]
     for i in range(0, df.shape[0]):    #each route
+        routeID = df['MeasureableRouteID'][i]
         oSiteID = df['OriginSiteID'][i]
         mSiteID = df['MidSiteID'][i]
         dSiteID = df['DestSiteID'][i]
@@ -257,8 +247,7 @@ def makeODRoutes(con,cur):
         winlenseconds = 99999999.9
         timestamp = "2015-02-14 09:00:00"
         sql = "INSERT INTO ODRoute (routeID, timestamp, winlenseconds, count)\
-        VALUES ('%s', '%s', %f, %i)"%(route1,\
-        timestamp, winlenseconds, count)
+        VALUES ('%s', '%s', %f, %i)"%(routeID,timestamp, winlenseconds, count)
         cur.execute(sql)
     con.commit()  
 def routeLinks(con,cur): 
@@ -308,25 +297,6 @@ def routeCounts(con,cur):   #count number of matching Bluetooth detections betwe
         sql = "INSERT INTO routecount (routeID, timestamp, winlenseconds, count) VALUES ('%s', '%s', %f, %i)"%(df_route['routeid'].iloc[i], timestamp, winlenseconds, count)
         cur.execute(sql)
         con.commit()
-"""def MeasureableRouteCounts(con,cur):   #count number of matching Bluetooth detections between origins and destinations
-    sql = "SELECT * FROM MeasureableRoute;"
-    df_measureableroute = pd.read_sql_query(sql,con)
-    for i in range(0, df_measureableroute.shape[0]):    #each route
-        oSiteID = df_measureableroute['originsiteid'][i]
-        mSiteID = df_measureableroute ['midsiteid'][i]
-        dSiteID = df_measureableroute['destsiteid'][i]
-        #MAC matching
-        sql = "SELECT d.siteID AS dSiteID,  d.mac as dmac, d.timestamp as dtimestamp  , m.siteID AS mSiteID,  m.mac as mmac, m.timestamp as mtimestamp ,  o.siteID AS oSiteID,  o.mac as omac, o.timestamp as otimestamp    FROM Detection AS d, Detection AS o  WHERE d.timestamp>m.timestamp>o.timestamp\
-        AND o.mac=m.mac AND m.mac=d.mac  AND o.siteID='%s'AND m.siteID='%s' AND d.siteID='%s'"%(oSiteID, mSiteID, dSiteID)
-        print(sql)
-        df_matches = pd.read_sql_query(sql,con)
-        count = df_matches.shape[0]  #count number of bluetooth matches
-        #these two variables allow us to compute flows for differnt time windows. Here we just take one whole day.
-        winlenseconds = 99999999.9
-        timestamp = "2015-02-14 09:00:00"
-        sql = "INSERT INTO routecount (routeID, timestamp, winlenseconds, count) VALUES ('%s', '%s', %f, %i)"%(df_measureableroute['routeid'].iloc[i], timestamp, winlenseconds, count)
-        cur.execute(sql)
-        con.commit()"""
 def linkCounts(con, cur):
     sql = "SELECT * FROM RouteCount;"
     df_rc = pd.read_sql_query(sql,con)

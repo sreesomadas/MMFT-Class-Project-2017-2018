@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[2]:
+# In[1]:
 
 
 #before using this you need to make a link-breaked version of the roads in yoru database with the osm2pgrourting tool. 
@@ -331,22 +331,28 @@ SensorDistances(con,cur)
 
 
 
-# In[7]:
+# In[36]:
 
 
-#plot of Flows vs route id
+#plot of Flows vs route id 
 get_ipython().run_line_magic('matplotlib', 'inline')
 import matplotlib.pyplot as plt
 
 def plotFlowsvsOD(con,cur):     
     sql = "SELECT odrouteid, count FROM odroutecount;" 
     print(sql)
-    fig, ax = subplots()
+    #fig, ax = subplots()
     df = pd.read_sql_query(sql,con)
-    df.plot(ax=ax, marker =".", markersize =10, title = "Flows at chosen OD pairs")
-    ax.legend(["count"])
-    ax.set_xlabel("OD Route")
-    ax.set_ylabel("Flows")
+    print (df)
+    ax= df.plot(kind ='bar')
+   
+    plt.legend(["count"])
+    plt.suptitle = "Flows at chosen OD pairs"
+    
+    plt.xticks(rotation=25)
+    plt.xlabel("OD Route")
+    plt.ylabel("Flows")
+    
 
 plotFlowsvsOD(con,cur)
 print ("Flows Vs OD plotted")
@@ -447,11 +453,71 @@ plotFlowsvsODdist(con,cur)
 print ("Flows Vs OD Distances plotted")
 
 
+# In[2]:
+
+
+
+#Vehicles on other paths - Section 2 
+
+# Load total OD flows and put them into a dafaframe
+sql_od = "Select OriginSiteID as O, DestSiteID as D, count as flow from Totalroutecount order by O;"
+df_od = pd.read_sql_query(sql_od,con) #df of OD flow
+
+# Load total OmD routes, flows and their respective distance. Then select 
+# only shortest paths from each OD pair
+sql_count = "SELECT odrouteid, originsiteid as o, midsiteid as m,             destsiteid as d, count FROM odroutecount order by odrouteid;"
+sql_d = "SELECT odrouteid, total_length     from shortestroute order by odrouteid;" 
+df_1 = pd.read_sql_query(sql_count,con)
+df_2 = pd.read_sql_query(sql_d,con)
+df_new = pd.merge(df_1,df_2, how ='left', on =['odrouteid'])
+# Here the filtering of shortest paths take place
+df_new=df_new.sort_values(['o', 'total_length'], ascending=[True,True])
+df_new['dist_comparison']=df_new['total_length'].shift(-1)
+df_new['boolean_check']=df_new['total_length']<df_new['dist_comparison']
+newDF = df_new[(df_new['boolean_check']==True)]
+
+print (df_od)
+print(newDF)
+
+# Merge two dfs
+df = pd.merge(df_od, newDF, how ='left', on =['o'])
+
+df["flow_alt"] = df["flow"] - df["count"] #People taking other routes
+df["flow_alt"] = df["flow_alt"].abs()
+print(df)
+
+
+#%drivers on alternative routes
+df["%Alternate_Path"] = df["flow_alt"]/ df["flow"] *100
+print(df)
+
+#%drivers on shortest path
+
+df["%Shortest_Path"] = df["count"]/df["flow"] *100
+
+#Histogram with %flows on routes
+
+df_2 = pd.concat([df["%Shortest_Path"], df["%Alternate_Path"]], axis = 1,                  keys = ["%Shortest_Path", "%Alternate_Path"])
+print (df_2)
+axes = df_2.plot(kind ='bar',stacked =True)
+plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+labels = axes.get_xticks().tolist()
+labels =["MAC000010101", "MAC000010102", "MAC000010119", "MAC000010121",         "MAC000010123"]
+axes.set_xticklabels(labels)
+plt.xticks(rotation=25)
+plt.suptitle ("Comparison of Routes Taken")
+plt.xlabel("OD pairs")
+plt.ylabel("Percentage of Vehicles")
+plt.savefig('StackGraph.png')
+
+
 # In[9]:
 
 
 
-#Vehicles on other paths - Section 2
+#Vehicles on other paths 
+
+##This can be used to see the difference between measured paths and alternate paths without sensors.
 
 sql_od = "Select OriginSiteID as O, DestSiteID as D, count as flow from Totalroutecount;"
 sql_omd = "Select OriginSiteID as Om, DestSiteID as Dm, count as flow_m from ODroutecount;"
@@ -537,12 +603,13 @@ ax.set_ylabel("%Flows on Shortest Routes per Route")'''
 
 
 #############################End of Analysis#####################################
+##################################################################################
 
 
 # In[ ]:
 
 
-###Except Visualisations
+###Except Visualisations#####Look in Visualisations Code
 get_ipython().run_line_magic('matplotlib', 'inline')
 #Importing Geometries
 
